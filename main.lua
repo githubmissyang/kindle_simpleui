@@ -893,7 +893,34 @@ function SimpleUIPlugin:init()
         title    = _("Simple UI: Recent"),
         general  = true,
     })
+    Dispatcher:registerAction("simpleui_zlibrary_search", {
+        category = "none",
+        event    = "SimpleUIZLibrarySearch",
+        title    = _("Simple UI: Z-Library Search"),
+        general  = true,
+    })
 
+        -- Register Z-Library as a Quick Action
+        do
+            local ok_qa, QA = pcall(require, "sui_quickactions")
+            if ok_qa and QA and QA.register then
+                local ok_zl, ZLUI = pcall(require, "zlibrary/zl_ui")
+                if ok_zl and ZLUI then
+                    local src = debug.getinfo(1, "S").source or ""
+                    local p_root = src:match("^@?(.+)/[^/]+$") or ""
+                    QA.register({
+                        id          = "zlibrary_search",
+                        label       = _("Z-Library Search"),
+                        icon        = p_root ~= "" and (p_root .. "/icons/zlibrary.svg") or nil,
+                        is_in_place = true,
+                        is_async_in_place = true,
+                        execute     = function(ctx)
+                            ZLUI.showSearchWindow()
+                        end,
+                    })
+                end
+            end
+        end
 
         -- -------------------------------------------------------------------
         -- First-run bootstrap: ensure "Start with Homescreen" is active.
@@ -1331,6 +1358,12 @@ end
 function SimpleUIPlugin:onSimpleUIRecentWindow()
     local ok, QA = pcall(require, "sui_quickactions")
     if ok and QA and QA.showRecentWindow then QA.showRecentWindow() end
+    return true
+end
+
+function SimpleUIPlugin:onSimpleUIZLibrarySearch()
+    local ok, ZLUI = pcall(require, "zlibrary/zl_ui")
+    if ok and ZLUI and ZLUI.showSearchWindow then ZLUI.showSearchWindow() end
     return true
 end
 

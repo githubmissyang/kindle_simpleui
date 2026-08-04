@@ -67,6 +67,7 @@ local MODULES = {
     { require_mod = "desktop_modules/module_quick_actions" },
     { require_mod = "desktop_modules/module_action_list"   },
     { require_mod = "desktop_modules/module_spacer"        },
+    { require_mod = "desktop_modules/module_zlibrary"     },
 }
 
 local _loaded        = nil

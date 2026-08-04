@@ -4522,3 +4522,211 @@ msgid "page read"
 msgid_plural "pages read"
 msgstr[0] "已读页数"
 msgstr[1] "已读页数"
+
+# Z-Library integration
+msgid "Z-Library"
+msgstr "Z-Library"
+
+msgid "Search Z-Library"
+msgstr "搜索 Z-Library"
+
+msgid "Enter book title or author"
+msgstr "输入书名或作者"
+
+msgid "Search Z-Library (%s)"
+msgstr "搜索 Z-Library（%s）"
+
+msgid "Searching…"
+msgstr "正在搜索…"
+
+msgid "Search failed: %s"
+msgstr "搜索失败：%s"
+
+msgid "No results found."
+msgstr "未找到结果。"
+
+msgid "Search Results"
+msgstr "搜索结果"
+
+msgid "Previous"
+msgstr "上一页"
+
+msgid "Loading book details…"
+msgstr "正在加载图书详情…"
+
+msgid "Failed to load book details: %s"
+msgstr "加载图书详情失败：%s"
+
+msgid "Unknown Title"
+msgstr "未知书名"
+
+msgid "Format: %s"
+msgstr "格式：%s"
+
+msgid "Year: %s"
+msgstr "年份：%s"
+
+msgid "Publisher: %s"
+msgstr "出版社：%s"
+
+msgid "Language: %s"
+msgstr "语言：%s"
+
+msgid "Description"
+msgstr "简介"
+
+msgid "Download: %s"
+msgstr "下载：%s"
+
+msgid "Download"
+msgstr "下载"
+
+msgid "Login to Z-Library"
+msgstr "登录 Z-Library"
+
+msgid "Email"
+msgstr "邮箱"
+
+msgid "Password"
+msgstr "密码"
+
+msgid "Switch Domain"
+msgstr "切换域名"
+
+msgid "Login"
+msgstr "登录"
+
+msgid "Please enter both email and password."
+msgstr "请输入邮箱和密码。"
+
+msgid "Logging in…"
+msgstr "正在登录…"
+
+msgid "Login successful!"
+msgstr "登录成功！"
+
+msgid "Login failed: %s"
+msgstr "登录失败：%s"
+
+msgid "Invalid credentials"
+msgstr "账号或密码错误"
+
+msgid "Unknown response format"
+msgstr "未知响应格式"
+
+msgid "Empty response"
+msgstr "空响应"
+
+msgid "Select Domain"
+msgstr "选择域名"
+
+msgid "Z-Library Settings"
+msgstr "Z-Library 设置"
+
+msgid "Domain: %s"
+msgstr "域名：%s"
+
+msgid "Logged in as: %s"
+msgstr "已登录：%s"
+
+msgid "Not logged in"
+msgstr "未登录"
+
+msgid "Download directory: %s"
+msgstr "下载目录：%s"
+
+msgid "Clear recent downloads"
+msgstr "清除最近下载"
+
+msgid "Clear the recent downloads list?"
+msgstr "清除最近下载列表？"
+
+msgid "Clear"
+msgstr "清除"
+
+msgid "Recent downloads cleared."
+msgstr "最近下载已清除。"
+
+msgid "Clear login cookies"
+msgstr "清除登录 Cookie"
+
+msgid "Clear all stored login cookies? You will need to log in again."
+msgstr "清除所有已保存的登录 Cookie？您需要重新登录。"
+
+msgid "Cookies cleared."
+msgstr "Cookie 已清除。"
+
+msgid "About Z-Library"
+msgstr "关于 Z-Library"
+
+msgid "Z-Library search integration for KOReader.\nSearch and download books from Z-Library mirror sites."
+msgstr "KOReader 的 Z-Library 搜索集成。\n从 Z-Library 镜像站点搜索和下载图书。"
+
+msgid "Log out of Z-Library?"
+msgstr "退出 Z-Library 登录？"
+
+msgid "Log Out"
+msgstr "退出登录"
+
+msgid "Logged out."
+msgstr "已退出登录。"
+
+msgid "Download Directory"
+msgstr "下载目录"
+
+msgid "Enter download directory path"
+msgstr "输入下载目录路径"
+
+msgid "Select Download Directory"
+msgstr "选择下载目录"
+
+msgid "No download URL available for this book."
+msgstr "此图书没有可用的下载链接。"
+
+msgid "File already exists:"
+msgstr "文件已存在："
+
+msgid "Download again?"
+msgstr "重新下载？"
+
+msgid "Downloading…"
+msgstr "正在下载…"
+
+msgid "Download complete!"
+msgstr "下载完成！"
+
+msgid "Read now?"
+msgstr "立即阅读？"
+
+msgid "Read"
+msgstr "阅读"
+
+msgid "Download failed: %s"
+msgstr "下载失败：%s"
+
+msgid "No recent downloads"
+msgstr "暂无最近下载"
+
+msgid "Z-Library: Search"
+msgstr "Z-Library：搜索"
+
+msgid "Z-Library: Login"
+msgstr "Z-Library：登录"
+
+msgid "Z-Library: Settings"
+msgstr "Z-Library：设置"
+
+msgid "Z-Library: Logged in (%s)"
+msgstr "Z-Library：已登录（%s）"
+
+msgid "Z-Library: Not logged in (%s)"
+msgstr "Z-Library：未登录（%s）"
+
+msgid "Simple UI: Z-Library Search"
+msgstr "Simple UI：Z-Library 搜索"
+
+msgid "Z-Library Search"
+msgstr "Z-Library 搜索"
+
+msgid "Unknown"
+msgstr "未知"
