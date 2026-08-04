@@ -141,10 +141,6 @@ msgstr ""
 "\n"
 "是否立即重启？"
 
-#: _meta.lua:7
-msgid "A simple UI for KOReader"
-msgstr "Simple UI 是 KOReader 的一个界面 UI 插件，提供一个简约美观的界面 UI。"
-
 #: sui_stats_windows.lua:2706
 msgid "ALL TIME"
 msgstr "总计"
@@ -2501,19 +2497,11 @@ msgstr "封面上叠加百分比"
 msgid "Percentage Text"
 msgstr "百分比文本"
 
-#: desktop_modules/module_recent.lua:581
-msgid "Percentage overlay on cover"
-msgstr "封面上的百分比叠加层"
-
 #: desktop_modules/module_coverdeck.lua:78
 #: desktop_modules/module_currently.lua:249
 #: desktop_modules/module_currently.lua:1159
 msgid "Percentage read"
 msgstr "已读百分比"
-
-#: desktop_modules/module_recent.lua:571
-msgid "Percentage text"
-msgstr "百分比文字"
 
 #: desktop_modules/module_reading_goals.lua:404
 msgid "Physical Books — %s"
