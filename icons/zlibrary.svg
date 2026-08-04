@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- Book body -->
+  <path d="M4 4.5C4 3.67 4.67 3 5.5 3H15l4 4v12.5c0 .83-.67 1.5-1.5 1.5h-12c-.83 0-1.5-.67-1.5-1.5v-15z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M15 3v4h4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+  <!-- Book lines -->
+  <line x1="7" y1="9" x2="13" y2="9" stroke="currentColor" stroke-width="1" opacity="0.5"/>
+  <line x1="7" y1="11.5" x2="13" y2="11.5" stroke="currentColor" stroke-width="1" opacity="0.5"/>
+  <line x1="7" y1="14" x2="11" y2="14" stroke="currentColor" stroke-width="1" opacity="0.5"/>
+  <!-- Magnifying glass -->
+  <circle cx="17" cy="17" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+  <line x1="19.5" y1="19.5" x2="22" y2="22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+</svg>
