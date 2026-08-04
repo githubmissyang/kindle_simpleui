@@ -14,8 +14,7 @@ local HorizontalGroup = require("ui/widget/horizontalgroup")
 local HorizontalSpan  = require("ui/widget/horizontalspan")
 local ImageWidget     = require("ui/widget/imagewidget")
 local InputContainer  = require("ui/widget/container/inputcontainer")
-local OverlapGroup    = require("ui/widget/overlapgroup")
-local TextWidget      = require("ui/widget/textboxwidget")
+local TextWidget      = require("ui/widget/textwidget")
 local TextBoxWidget   = require("ui/widget/textboxwidget")
 local UIManager       = require("ui/uimanager")
 local VerticalGroup   = require("ui/widget/verticalgroup")
@@ -58,12 +57,12 @@ M.id          = "zlibrary"
 M.name        = _("Z-Library")
 M.label       = _("Z-Library")
 M.enabled_key = "zlibrary_enabled"
-M.default_on  = false
+M.default_on  = true
 M.has_covers  = true
 
 function M.isEnabled(pfx)
-    return SUISettings:isTrue(pfx .. M.enabled_key)
-        or SUISettings:nilOrTrue(pfx .. M.enabled_key)
+    -- nilOrTrue: default enabled when key not set (matches default_on = true)
+    return SUISettings:nilOrTrue(pfx .. M.enabled_key)
 end
 
 -- ---------------------------------------------------------------------------
@@ -81,32 +80,48 @@ local function _buildSearchBar(w, ctx, scale)
     local domain = ZLConfig.getActiveDomainName()
     local hint_text = _("Search Z-Library") .. " (" .. domain .. ")"
 
-    local icon_path = "plugins/simpleui.koplugin/icons/zlibrary.svg"
+    -- Determine icon path: look for the SVG next to this module file
+    local src = debug.getinfo(1, "S").source or ""
+    local p_root = src:match("^@?(.+)/[^/]+$")
+    local icon_path
+    if p_root then
+        icon_path = p_root:match("^(.+/desktop_modules)$")
+            and (p_root:match("^(.+/desktop_modules)$"):gsub("/desktop_modules$", "") .. "/icons/zlibrary.svg")
+            or nil
+    end
 
-    local search_content = HorizontalGroup:new{
+    local search_inner = HorizontalGroup:new{
         align = "center",
         dimen = Geom:new{ w = w - fpad * 2, h = h - fpad * 2 },
-        -- Icon
-        CenterContainer:new{
-            dimen = Geom:new{ w = icon_sz + fpad, h = h - fpad * 2 },
-            ImageWidget:new{
-                file = icon_path,
-                width = icon_sz,
-                height = icon_sz,
-                alpha = true,
-            },
-        },
-        -- Hint text
-        CenterContainer:new{
-            dimen = Geom:new{ w = w - icon_sz - fpad * 4, h = h - fpad * 2 },
-            TextWidget:new{
-                text    = hint_text,
-                face    = Font:getFace(SUIStyle.FACE_REGULAR, fs),
-                fgcolor = CLR_TEXT_SUB,
-                width   = w - icon_sz - fpad * 4,
-            },
-        },
     }
+
+    -- Icon (if found)
+    if icon_path then
+        local lfs = require("libs/libkoreader-lfs")
+        if lfs.attributes(icon_path, "mode") == "file" then
+            search_inner:add(CenterContainer:new{
+                dimen = Geom:new{ w = icon_sz + fpad, h = h - fpad * 2 },
+                ImageWidget:new{
+                    file = icon_path,
+                    width = icon_sz,
+                    height = icon_sz,
+                    alpha = true,
+                },
+            })
+        end
+    end
+
+    -- Hint text
+    local text_w = w - fpad * 2
+    if icon_path then text_w = text_w - icon_sz - fpad end
+    search_inner:add(CenterContainer:new{
+        dimen = Geom:new{ w = text_w, h = h - fpad * 2 },
+        TextWidget:new{
+            text    = hint_text,
+            face    = Font:getFace(SUIStyle.FACE_REGULAR, fs),
+            fgcolor = CLR_TEXT_SUB,
+        },
+    })
 
     local search_tap = InputContainer:new{}
     search_tap[1] = FrameContainer:new{
@@ -114,7 +129,7 @@ local function _buildSearchBar(w, ctx, scale)
         radius     = corner,
         padding    = fpad,
         bordersize = 0,
-        search_content,
+        search_inner,
     }
     search_tap.dimen = search_tap[1]:getSize()
     search_tap.ges_events = {
@@ -153,9 +168,8 @@ local function _buildRecentList(w, ctx, scale)
         }
     end
 
-    local item_h  = math.max(16, math.floor(_BASE_RECENT_H * scale))
     local item_fs = math.max(8, math.floor(_BASE_RECENT_FS * scale))
-    local max_items = math.min(#recent, 3)  -- show at most 3 recent items
+    local max_items = math.min(#recent, 3)
 
     local items = VerticalGroup:new{ align = "left" }
 
@@ -184,7 +198,6 @@ local function _buildRecentList(w, ctx, scale)
         item_widget[1] = item_content
         item_widget.dimen = item_content:getSize()
 
-        -- Store book path for tap handler
         local book_path = entry.path
         if book_path and book_path ~= "" then
             item_widget.ges_events = {
@@ -196,7 +209,6 @@ local function _buildRecentList(w, ctx, scale)
                 },
             }
             item_widget.onTapBook = function()
-                -- Open the downloaded book
                 local ok, ReaderUI = pcall(require, "apps/reader/readerui")
                 if ok and ReaderUI then
                     pcall(function() ReaderUI:showReader(book_path) end)
@@ -238,13 +250,25 @@ function M.build(w, ctx)
     end
 
     -- Search bar
-    local search_bar = _buildSearchBar(w, ctx, scale)
-    vg:add(search_bar)
+    local ok_search, search_bar = pcall(_buildSearchBar, w, ctx, scale)
+    if ok_search and search_bar then
+        vg:add(search_bar)
+    else
+        -- Fallback: simple text button if search bar fails
+        logger.warn("module_zlibrary: search bar build failed, using fallback")
+        vg:add(TextWidget:new{
+            text    = _("Search Z-Library"),
+            face    = Font:getFace(SUIStyle.FACE_REGULAR, math.max(8, math.floor(_BASE_SEARCH_FS * scale))),
+            fgcolor = Blitbuffer.COLOR_BLACK,
+        })
+    end
     vg:add(VerticalSpan:new{ width = math.max(2, math.floor(8 * scale)) })
 
     -- Recent downloads
-    local recent_list = _buildRecentList(w, ctx, scale)
-    vg:add(recent_list)
+    local ok_recent, recent_list = pcall(_buildRecentList, w, ctx, scale)
+    if ok_recent and recent_list then
+        vg:add(recent_list)
+    end
 
     -- Wrap in an InputContainer for long-press to open settings
     local module_widget = InputContainer:new{}
