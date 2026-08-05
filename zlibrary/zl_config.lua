@@ -26,7 +26,12 @@ local KEY_USER_REMINDER = "simpleui_zl_user_reminder"
 function ZLConfig.getDomains()
     local domains = SUISettings:readSetting(KEY_DOMAINS)
     if not domains or #domains == 0 then
-        return DEFAULT_DOMAINS
+        -- Return a copy of DEFAULT_DOMAINS, not the original
+        local copy = {}
+        for _, d in ipairs(DEFAULT_DOMAINS) do
+            copy[#copy + 1] = { name = d.name, url = d.url }
+        end
+        return copy
     end
     return domains
 end

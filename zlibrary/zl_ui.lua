@@ -577,9 +577,18 @@ function ZLUI._showDomainPicker(callback)
 
     local item_table = {}
     local domains = ZLConfig.getDomains()
+    local active_url = ZLConfig.getActiveDomain()
+
+    -- Default (built-in) domains that cannot be deleted
+    local DEFAULT_URLS = {
+        ["https://z-lib.org"] = true,
+        ["https://singlelogin.re"] = true,
+        ["https://z-library.sk"] = true,
+    }
 
     for _, d in ipairs(domains) do
-        local is_active = ZLConfig.getActiveDomain() == d.url
+        local is_active = active_url == d.url
+        local is_builtin = DEFAULT_URLS[d.url] == true
         item_table[#item_table + 1] = {
             text = d.name .. (is_active and "  ✓" or ""),
             callback = function()
@@ -589,7 +598,52 @@ function ZLUI._showDomainPicker(callback)
                 if callback then callback() end
             end,
         }
+        -- Add a "Delete" entry for non-builtin domains
+        if not is_builtin then
+            item_table[#item_table + 1] = {
+                text = "  " .. _("Delete: ") .. d.name,
+                callback = function()
+                    UIManager:show(ConfirmBox:new{
+                        text = _("Delete domain?") .. "\n" .. d.name .. " (" .. d.url .. ")",
+                        ok_text = _("Delete"),
+                        cancel_text = _("Cancel"),
+                        ok_callback = function()
+                            local current_domains = ZLConfig.getDomains()
+                            local new_domains = {}
+                            for _, dd in ipairs(current_domains) do
+                                if dd.url ~= d.url then
+                                    new_domains[#new_domains + 1] = dd
+                                end
+                            end
+                            ZLConfig.setDomains(new_domains)
+                            -- If deleted the active domain, switch to first remaining
+                            if d.url == active_url and #new_domains > 0 then
+                                ZLConfig.setActiveDomain(new_domains[1].url)
+                            end
+                            -- Refresh the domain picker
+                            UIManager:close(menu)
+                            ZLUI._showDomainPicker(callback)
+                        end,
+                    })
+                end,
+            }
+        end
     end
+
+    -- Separator
+    item_table[#item_table + 1] = {
+        text = "───",
+        enabled = false,
+    }
+
+    -- Add domain entry
+    item_table[#item_table + 1] = {
+        text = _("Add domain…"),
+        callback = function()
+            UIManager:close(menu)
+            ZLUI._showAddDomainDialog(callback)
+        end,
+    }
 
     local menu
     menu = Menu:new{
@@ -607,6 +661,200 @@ function ZLUI._showDomainPicker(callback)
     }
 
     UIManager:show(menu)
+end
+
+function ZLUI._showAddDomainDialog(callback)
+    if MultiInputDialog then
+        ZLUI._showAddDomainMultiInput(callback)
+    elseif InputDialog then
+        ZLUI._showAddDomainStepByStep(callback, 1, {}, nil)
+    else
+        UIManager:show(InfoMessage:new{
+            text = _("Input dialog not available."),
+            timeout = 3,
+        })
+    end
+end
+
+function ZLUI._showAddDomainMultiInput(callback)
+    local dialog
+    dialog = MultiInputDialog:new{
+        title = _("Add Domain"),
+        fields = {
+            {
+                text = "",
+                hint = _("Domain name (e.g. My Z-Library)"),
+            },
+            {
+                text = "https://",
+                hint = _("Domain URL (e.g. https://z-lib.org)"),
+            },
+        },
+        buttons = {
+            {
+                {
+                    text = _("Cancel"),
+                    callback = function()
+                        UIManager:close(dialog)
+                    end,
+                },
+                {
+                    text = _("Add"),
+                    is_enter_default = true,
+                    callback = function()
+                        local fields = dialog:getFields()
+                        local name = fields[1] or ""
+                        local url = fields[2] or ""
+
+                        -- Strip trailing slash from URL
+                        url = url:gsub("/+$", "")
+
+                        if name == "" or url == "" or not url:match("^https?://") then
+                            UIManager:show(InfoMessage:new{
+                                text = _("Please enter a valid name and URL (must start with http:// or https://)."),
+                                timeout = 3,
+                            })
+                            return
+                        end
+
+                        -- Check for duplicate
+                        local current_domains = ZLConfig.getDomains()
+                        for _, d in ipairs(current_domains) do
+                            if d.url == url then
+                                UIManager:show(InfoMessage:new{
+                                    text = _("This domain URL already exists."),
+                                    timeout = 3,
+                                })
+                                return
+                            end
+                        end
+
+                        -- Add the new domain
+                        current_domains[#current_domains + 1] = {
+                            name = name,
+                            url = url,
+                        }
+                        ZLConfig.setDomains(current_domains)
+                        ZLConfig.setActiveDomain(url)
+
+                        UIManager:close(dialog)
+                        UIManager:show(InfoMessage:new{
+                            text = _("Domain added: ") .. name,
+                            timeout = 2,
+                        })
+                        if callback then callback() end
+                    end,
+                },
+            },
+        },
+    }
+    UIManager:show(dialog)
+    dialog:onShowKeyboard()
+end
+
+function ZLUI._showAddDomainStepByStep(callback, step, partial, input_dialog)
+    -- Fallback when MultiInputDialog is not available:
+    -- step 1 = ask for domain name, step 2 = ask for URL
+    if step == 1 then
+        local dialog
+        dialog = InputDialog:new{
+            title = _("Add Domain"),
+            input = "",
+            input_hint = _("Domain name (e.g. My Z-Library)"),
+            buttons = {
+                {
+                    {
+                        text = _("Cancel"),
+                        callback = function()
+                            UIManager:close(dialog)
+                        end,
+                    },
+                    {
+                        text = _("Next"),
+                        is_enter_default = true,
+                        callback = function()
+                            local name = dialog:getInputText()
+                            if not name or name:match("^%s*$") then
+                                UIManager:show(InfoMessage:new{
+                                    text = _("Please enter a domain name."),
+                                    timeout = 3,
+                                })
+                                return
+                            end
+                            UIManager:close(dialog)
+                            ZLUI._showAddDomainStepByStep(callback, 2, { name = name })
+                        end,
+                    },
+                },
+            },
+        }
+        UIManager:show(dialog)
+        dialog:onShowKeyboard()
+    elseif step == 2 then
+        local dialog
+        dialog = InputDialog:new{
+            title = _("Add Domain") .. " — " .. partial.name,
+            input = "https://",
+            input_hint = _("Domain URL (e.g. https://z-lib.org)"),
+            buttons = {
+                {
+                    {
+                        text = _("Cancel"),
+                        callback = function()
+                            UIManager:close(dialog)
+                        end,
+                    },
+                    {
+                        text = _("Add"),
+                        is_enter_default = true,
+                        callback = function()
+                            local url = dialog:getInputText() or ""
+
+                            -- Strip trailing slash from URL
+                            url = url:gsub("/+$", "")
+
+                            if url == "" or not url:match("^https?://") then
+                                UIManager:show(InfoMessage:new{
+                                    text = _("Please enter a valid name and URL (must start with http:// or https://)."),
+                                    timeout = 3,
+                                })
+                                return
+                            end
+
+                            -- Check for duplicate
+                            local current_domains = ZLConfig.getDomains()
+                            for _, d in ipairs(current_domains) do
+                                if d.url == url then
+                                    UIManager:show(InfoMessage:new{
+                                        text = _("This domain URL already exists."),
+                                        timeout = 3,
+                                    })
+                                    return
+                                end
+                            end
+
+                            -- Add the new domain
+                            current_domains[#current_domains + 1] = {
+                                name = partial.name,
+                                url = url,
+                            }
+                            ZLConfig.setDomains(current_domains)
+                            ZLConfig.setActiveDomain(url)
+
+                            UIManager:close(dialog)
+                            UIManager:show(InfoMessage:new{
+                                text = _("Domain added: ") .. partial.name,
+                                timeout = 2,
+                            })
+                            if callback then callback() end
+                        end,
+                    },
+                },
+            },
+        }
+        UIManager:show(dialog)
+        dialog:onShowKeyboard()
+    end
 end
 
 -- ---------------------------------------------------------------------------

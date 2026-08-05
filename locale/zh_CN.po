@@ -4730,3 +4730,30 @@ msgstr "Z-Library 搜索"
 
 msgid "Unknown"
 msgstr "未知"
+
+msgid "Add domain…"
+msgstr "添加域名…"
+
+msgid "Add Domain"
+msgstr "添加域名"
+
+msgid "Domain name (e.g. My Z-Library)"
+msgstr "域名名称（例如：我的 Z-Library）"
+
+msgid "Domain URL (e.g. https://z-lib.org)"
+msgstr "域名地址（例如：https://z-lib.org）"
+
+msgid "Please enter a valid name and URL (must start with http:// or https://)."
+msgstr "请输入有效的名称和地址（必须以 http:// 或 https:// 开头）。"
+
+msgid "This domain URL already exists."
+msgstr "该域名地址已存在。"
+
+msgid "Domain added: %s"
+msgstr "已添加域名：%s"
+
+msgid "Delete domain?"
+msgstr "删除域名？"
+
+msgid "Delete: %s"
+msgstr "删除：%s"
