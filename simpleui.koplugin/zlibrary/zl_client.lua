@@ -15,7 +15,7 @@ local ZLClient = {}
 --- HTTP GET request
 -- @param url string: target URL
 -- @param headers table|nil: optional extra headers
--- @return body string or nil, error string
+-- @return body string or nil, response headers or error string, HTTP status
 function ZLClient.httpGet(url, headers)
     local ok_su, socketutil = pcall(require, "socketutil")
     local http   = require("socket/http")
@@ -63,16 +63,16 @@ function ZLClient.httpGet(url, headers)
     end
 
     if code == 200 then
-        return table.concat(chunks)
+        return table.concat(chunks), resp_headers, code
     end
-    return nil, string.format("HTTP %s", tostring(code))
+    return nil, string.format("HTTP %s", tostring(code)), code, resp_headers
 end
 
 --- HTTP POST request
 -- @param url string: target URL
 -- @param body string: request body (URL-encoded form data)
 -- @param headers table|nil: optional extra headers
--- @return body string or nil, error string
+-- @return body string or nil, response headers or error string, HTTP status
 function ZLClient.httpPost(url, body, headers)
     local ok_su, socketutil = pcall(require, "socketutil")
     local http   = require("socket/http")
@@ -122,9 +122,9 @@ function ZLClient.httpPost(url, body, headers)
     end
 
     if code == 200 then
-        return table.concat(chunks), resp_headers
+        return table.concat(chunks), resp_headers, code
     end
-    return nil, string.format("HTTP %s", tostring(code))
+    return nil, string.format("HTTP %s", tostring(code)), code, resp_headers
 end
 
 --- HTTP download to file
@@ -238,6 +238,89 @@ end
 -- Z-Library API operations
 -- ---------------------------------------------------------------------------
 
+--- Login using the HTML form used by newer Z-Library domains.
+-- @param domain string: domain URL
+-- @param username string: email address
+-- @param password string: password
+-- @return true or nil, error string
+function ZLClient.loginNewDomain(domain, username, password)
+    local ok, result, err = pcall(function()
+        local login_url = domain .. "/login"
+        local extra_headers = {}
+        local cookie_header = _getCookieHeader(domain)
+        if cookie_header then
+            extra_headers["Cookie"] = cookie_header
+        end
+
+        local login_page, get_headers_or_err = ZLClient.httpGet(login_url, extra_headers)
+        if not login_page then
+            return nil, get_headers_or_err
+        end
+
+        if type(get_headers_or_err) == "table" then
+            _saveCookiesFromResponse(domain, get_headers_or_err)
+        end
+
+        -- Attribute order on the current form is type, name, value. Keep this a
+        -- deliberately small pattern rather than pulling in an HTML parser.
+        local token = login_page:match(
+            '<input[^>]-type=["\']hidden["\'][^>]-name=["\']_token["\'][^>]-value=["\']([^"\']+)["\']'
+        )
+        if not token then
+            return nil, _("Login failed: CSRF token not found")
+        end
+
+        cookie_header = _getCookieHeader(domain)
+        extra_headers = {
+            ["Content-Type"] = "application/x-www-form-urlencoded",
+        }
+        if cookie_header then
+            extra_headers["Cookie"] = cookie_header
+        end
+
+        local url = require("socket.url")
+        local body = "_token=" .. url.escape(token)
+            .. "&email=" .. url.escape(username)
+            .. "&password=" .. url.escape(password)
+        local resp_body, post_headers_or_err, status_code, error_headers =
+            ZLClient.httpPost(login_url, body, extra_headers)
+        local response_headers = type(post_headers_or_err) == "table"
+            and post_headers_or_err or error_headers
+        if type(response_headers) == "table" then
+            _saveCookiesFromResponse(domain, response_headers)
+        end
+
+        -- This also supports HTTP helpers configured not to follow redirects.
+        if status_code and status_code >= 300 and status_code < 400 then
+            ZLConfig.setUserReminder(domain, username)
+            logger.info("zl_client: new-domain login redirected for", username)
+            return true
+        end
+        if not resp_body then
+            return nil, post_headers_or_err
+        end
+
+        -- httpPost follows redirects. A successful login therefore normally
+        -- arrives here as the final 200 page; a returned login form means the
+        -- credentials were rejected and the user was not logged in.
+        local still_on_login = resp_body:match('<input[^>]-name=["\']password["\']')
+            or resp_body:match('<form[^>]-action=["\'][^"\']*/login["\']')
+        if still_on_login then
+            return nil, _("Login failed")
+        end
+
+        ZLConfig.setUserReminder(domain, username)
+        logger.info("zl_client: new-domain login successful for", username)
+        return true
+    end)
+
+    if not ok then
+        logger.err("zl_client: new-domain login error:", result)
+        return nil, _("Login failed") .. ": " .. tostring(result)
+    end
+    return result, err
+end
+
 --- Login to Z-Library
 -- @param domain string: domain URL (e.g. "https://z-lib.org")
 -- @param username string: email address
@@ -254,9 +337,12 @@ function ZLClient.login(domain, username, password)
         extra_headers["Cookie"] = cookie_header
     end
 
-    local resp_body, resp_headers_or_err = ZLClient.httpPost(login_url, body, extra_headers)
+    local resp_body, resp_headers_or_err, status_code = ZLClient.httpPost(login_url, body, extra_headers)
 
     if not resp_body then
+        if status_code == 404 or resp_headers_or_err == "HTTP 404" then
+            return ZLClient.loginNewDomain(domain, username, password)
+        end
         return nil, resp_headers_or_err
     end
 

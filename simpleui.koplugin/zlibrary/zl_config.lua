@@ -8,6 +8,7 @@ local ok_ds, DataStorage = pcall(require, "datastorage")
 -- Default domains (known Chinese mirror sites)
 local DEFAULT_DOMAINS = {
     { name = "z-lib.org",      url = "https://z-lib.org" },
+    { name = "z-lib.nl",       url = "https://z-lib.nl" },
     { name = "singlelogin.re", url = "https://singlelogin.re" },
     { name = "z-library.sk",   url = "https://z-library.sk" },
 }
