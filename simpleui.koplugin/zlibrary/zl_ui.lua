@@ -358,7 +358,7 @@ function ZLUI._showBookDetailMenu(info)
     if info.formats and #info.formats > 0 then
         item_table[#item_table + 1] = { text = "───", enabled = false }
 
-        for _, fmt_entry in ipairs(info.formats) do
+        for __i, fmt_entry in ipairs(info.formats) do
             local fmt_name = fmt_entry.name or _("Download")
             local fmt_url = fmt_entry.url
             item_table[#item_table + 1] = {
@@ -595,7 +595,7 @@ function ZLUI._showDomainPicker(callback)
         -- Only pass well-formed strings to Menu, whose initializer renders text.
         local domains = {}
         if type(raw_domains) == "table" then
-            for _, domain in ipairs(raw_domains) do
+            for __i, domain in ipairs(raw_domains) do
                 if type(domain) == "table"
                         and type(domain.url) == "string" and domain.url ~= "" then
                     domains[#domains + 1] = {
@@ -614,7 +614,7 @@ function ZLUI._showDomainPicker(callback)
             ["https://z-library.sk"] = true,
         }
 
-        for _, domain in ipairs(domains) do
+        for __i, domain in ipairs(domains) do
             -- Capture values per iteration; do not retain the loop table in callbacks.
             local domain_name = domain.name
             local domain_url = domain.url
@@ -640,7 +640,7 @@ function ZLUI._showDomainPicker(callback)
                                     local current_domains = ZLConfig.getDomains()
                                     local new_domains = {}
                                     if type(current_domains) == "table" then
-                                        for _, current in ipairs(current_domains) do
+                                        for __i, current in ipairs(current_domains) do
                                             if type(current) == "table" and current.url ~= domain_url then
                                                 new_domains[#new_domains + 1] = current
                                             end
@@ -774,7 +774,7 @@ function ZLUI._showAddDomainMultiInput(callback)
 
                         -- Check for duplicate
                         local current_domains = ZLConfig.getDomains()
-                        for _, d in ipairs(current_domains) do
+                        for __i, d in ipairs(current_domains) do
                             if d.url == url then
                                 UIManager:show(InfoMessage:new{
                                     text = _("This domain URL already exists."),
@@ -878,7 +878,7 @@ function ZLUI._showAddDomainStepByStep(callback, step, partial, input_dialog)
 
                             -- Check for duplicate
                             local current_domains = ZLConfig.getDomains()
-                            for _, d in ipairs(current_domains) do
+                            for __i, d in ipairs(current_domains) do
                                 if d.url == url then
                                     UIManager:show(InfoMessage:new{
                                         text = _("This domain URL already exists."),
