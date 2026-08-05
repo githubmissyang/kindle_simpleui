@@ -621,7 +621,6 @@ function ZLUI._showDomainPicker(callback)
                                 ZLConfig.setActiveDomain(new_domains[1].url)
                             end
                             -- Refresh the domain picker
-                            UIManager:close(menu)
                             ZLUI._showDomainPicker(callback)
                         end,
                     })
@@ -651,8 +650,18 @@ function ZLUI._showDomainPicker(callback)
         width = screen_w - PAD * 2,
         height = screen_h - PAD * 2,
         is_popout = false,
-        close_callback = function()
-            UIManager:close(menu)
+        onMenuSelect = function(self_menu, item)
+            -- Close the picker menu, then defer the callback to the next
+            -- event loop tick. This ensures UIManager finishes processing
+            -- the close (removing from _window_stack, sending CloseWidget)
+            -- before the callback opens a new widget.
+            if item.callback then
+                local cb = item.callback
+                UIManager:close(self_menu)
+                UIManager:scheduleIn(0.1, function() cb() end)
+            else
+                UIManager:close(self_menu)
+            end
         end,
     }
 
@@ -951,8 +960,17 @@ function ZLUI.showSettingsMenu()
         width = screen_w - PAD * 2,
         height = screen_h - PAD * 2,
         is_popout = false,
-        close_callback = function()
-            UIManager:close(menu)
+        onMenuSelect = function(self_menu, item)
+            -- Close the settings menu, then defer the callback to the next
+            -- event loop tick. This ensures UIManager finishes processing
+            -- the close before the callback opens a new widget.
+            if item.callback then
+                local cb = item.callback
+                UIManager:close(self_menu)
+                UIManager:scheduleIn(0.1, function() cb() end)
+            else
+                UIManager:close(self_menu)
+            end
         end,
     }
 
