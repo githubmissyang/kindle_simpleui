@@ -621,7 +621,6 @@ function ZLUI._showDomainPicker(callback)
                                 ZLConfig.setActiveDomain(new_domains[1].url)
                             end
                             -- Refresh the domain picker
-                            UIManager:close(menu)
                             ZLUI._showDomainPicker(callback)
                         end,
                     })
@@ -640,7 +639,6 @@ function ZLUI._showDomainPicker(callback)
     item_table[#item_table + 1] = {
         text = _("Add domain…"),
         callback = function()
-            UIManager:close(menu)
             ZLUI._showAddDomainDialog(callback)
         end,
     }
