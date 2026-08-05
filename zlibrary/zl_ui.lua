@@ -86,7 +86,7 @@ end
 -- Search window
 -- ---------------------------------------------------------------------------
 
-function ZLUI.showSearchWindow(plugin)
+function ZLUI.showSearchWindow()
     local input_dialog
     input_dialog = InputDialog:new{
         title = _("Search Z-Library"),
@@ -107,7 +107,7 @@ function ZLUI.showSearchWindow(plugin)
                         local query = input_dialog:getInputText()
                         if not query or query:match("^%s*$") then return end
                         UIManager:close(input_dialog)
-                        ZLUI._doSearch(plugin, query, 1)
+                        ZLUI._doSearch(query, 1)
                     end,
                 },
             },
@@ -117,7 +117,7 @@ function ZLUI.showSearchWindow(plugin)
     input_dialog:onShowKeyboard()
 end
 
-function ZLUI._doSearch(plugin, query, page)
+function ZLUI._doSearch(query, page)
     local domain = ZLConfig.getActiveDomain()
     local loading_msg = InfoMessage:new{
         text = _("Searching…"),
@@ -147,12 +147,12 @@ function ZLUI._doSearch(plugin, query, page)
                 return
             end
 
-            ZLUI._showSearchResults(plugin, query, result, page)
+            ZLUI._showSearchResults(query, result, page)
         end)
     end)
 end
 
-function ZLUI._showSearchResults(plugin, query, result, page)
+function ZLUI._showSearchResults(query, result, page)
     local screen_w = Screen:getWidth()
     local screen_h = Screen:getHeight()
     local padding = PAD
@@ -187,7 +187,7 @@ function ZLUI._showSearchResults(plugin, query, result, page)
         is_popout = false,
         onMenuSelect = function(self_menu, item)
             if item and item.book then
-                ZLUI.showBookDetail(plugin, item.book)
+                ZLUI.showBookDetail(item.book)
             end
         end,
     }
@@ -205,7 +205,7 @@ function ZLUI._showSearchResults(plugin, query, result, page)
                 width = math.floor((screen_w - padding * 4) / 2),
                 callback = function()
                     UIManager:close(menu)
-                    ZLUI._doSearch(plugin, query, page - 1)
+                    ZLUI._doSearch(query, page - 1)
                 end,
             }
             btn_row:add(prev_btn)
@@ -220,7 +220,7 @@ function ZLUI._showSearchResults(plugin, query, result, page)
                 width = math.floor((screen_w - padding * 4) / 2),
                 callback = function()
                     UIManager:close(menu)
-                    ZLUI._doSearch(plugin, query, page + 1)
+                    ZLUI._doSearch(query, page + 1)
                 end,
             }
             btn_row:add(next_btn)
@@ -234,13 +234,13 @@ end
 -- Book detail window
 -- ---------------------------------------------------------------------------
 
-function ZLUI.showBookDetail(plugin, book_info)
+function ZLUI.showBookDetail(book_info)
     local domain = ZLConfig.getActiveDomain()
 
     -- Check login status first
     if not ZLClient.isLoggedIn(domain) then
-        ZLUI.showLoginWindow(plugin, function()
-            ZLUI.showBookDetail(plugin, book_info)
+        ZLUI.showLoginWindow(function()
+            ZLUI.showBookDetail(book_info)
         end)
         return
     end
@@ -271,12 +271,12 @@ function ZLUI.showBookDetail(plugin, book_info)
                 end
             end
 
-            ZLUI._showBookDetailMenu(plugin, info)
+            ZLUI._showBookDetailMenu(info)
         end)
     end)
 end
 
-function ZLUI._showBookDetailMenu(plugin, info)
+function ZLUI._showBookDetailMenu(info)
     local screen_w = Screen:getWidth()
     local screen_h = Screen:getHeight()
     local padding = PAD
@@ -346,7 +346,7 @@ function ZLUI._showBookDetailMenu(plugin, info)
                     for k, v in pairs(info) do download_info[k] = v end
                     download_info.download_url = fmt_url
                     download_info.format = fmt_name
-                    ZLUI.showDownloadProgress(plugin, download_info)
+                    ZLUI.showDownloadProgress(download_info)
                 end,
             }
         end
@@ -355,7 +355,7 @@ function ZLUI._showBookDetailMenu(plugin, info)
         item_table[#item_table + 1] = {
             text = _("Download"),
             callback = function()
-                ZLUI.showDownloadProgress(plugin, info)
+                ZLUI.showDownloadProgress(info)
             end,
         }
     end
@@ -461,7 +461,7 @@ end
 -- Login window
 -- ---------------------------------------------------------------------------
 
-function ZLUI.showLoginWindow(plugin, callback)
+function ZLUI.showLoginWindow(callback)
     local domain = ZLConfig.getActiveDomain()
     local saved_user = ZLConfig.getUserReminder(domain) or ""
 
@@ -492,7 +492,7 @@ function ZLUI.showLoginWindow(plugin, callback)
                     callback = function()
                         UIManager:close(dialog)
                         ZLUI._showDomainPicker(function()
-                            ZLUI.showLoginWindow(plugin, callback)
+                            ZLUI.showLoginWindow(callback)
                         end)
                     end,
                 },
@@ -513,7 +513,7 @@ function ZLUI.showLoginWindow(plugin, callback)
                         end
 
                         UIManager:close(dialog)
-                        ZLUI._doLogin(plugin, username, password, callback)
+                        ZLUI._doLogin(username, password, callback)
                     end,
                 },
             },
@@ -523,7 +523,7 @@ function ZLUI.showLoginWindow(plugin, callback)
     dialog:onShowKeyboard()
 end
 
-function ZLUI._doLogin(plugin, username, password, callback)
+function ZLUI._doLogin(username, password, callback)
     local domain = ZLConfig.getActiveDomain()
     local loading_msg = InfoMessage:new{
         text = _("Logging in…"),
@@ -595,7 +595,7 @@ end
 -- Settings menu
 -- ---------------------------------------------------------------------------
 
-function ZLUI.showSettingsMenu(plugin)
+function ZLUI.showSettingsMenu()
     local screen_w = Screen:getWidth()
     local screen_h = Screen:getHeight()
     local domain = ZLConfig.getActiveDomain()
@@ -616,14 +616,14 @@ function ZLUI.showSettingsMenu(plugin)
         item_table[#item_table + 1] = {
             text = _("Logged in as: ") .. user_text,
             callback = function()
-                ZLUI._showLogoutConfirm(plugin)
+                ZLUI._showLogoutConfirm()
             end,
         }
     else
         item_table[#item_table + 1] = {
             text = _("Not logged in"),
             callback = function()
-                ZLUI.showLoginWindow(plugin)
+                ZLUI.showLoginWindow()
             end,
         }
     end
@@ -700,7 +700,7 @@ function ZLUI.showSettingsMenu(plugin)
     UIManager:show(menu)
 end
 
-function ZLUI._showLogoutConfirm(plugin)
+function ZLUI._showLogoutConfirm()
     UIManager:show(ConfirmBox:new{
         text = _("Log out of Z-Library?"),
         ok_text = _("Log Out"),
@@ -764,7 +764,7 @@ end
 -- Download progress
 -- ---------------------------------------------------------------------------
 
-function ZLUI.showDownloadProgress(plugin, book_info)
+function ZLUI.showDownloadProgress(book_info)
     local domain = ZLConfig.getActiveDomain()
 
     local download_url = book_info.download_url

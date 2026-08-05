@@ -20,6 +20,7 @@ local UIManager       = require("ui/uimanager")
 local VerticalGroup   = require("ui/widget/verticalgroup")
 local VerticalSpan    = require("ui/widget/verticalspan")
 local Screen          = Device.screen
+local logger          = require("logger")
 local _  = require("sui_i18n").translate
 local N_ = require("sui_i18n").ngettext
 
@@ -231,7 +232,8 @@ end
 -- ---------------------------------------------------------------------------
 
 function M.build(w, ctx)
-    local scale = Config:getModuleScale(ctx, M.id) or 1.0
+    local pfx = ctx and ctx.pfx or "simpleui_hs_"
+    local scale = Config.getModuleScale("zlibrary", pfx) or 1.0
 
     local vg = VerticalGroup:new{
         align = "left",
@@ -296,7 +298,8 @@ function M.build(w, ctx)
 end
 
 function M.getHeight(ctx)
-    local scale = Config:getModuleScale(ctx, M.id) or 1.0
+    local pfx = ctx and ctx.pfx or "simpleui_hs_"
+    local scale = Config.getModuleScale("zlibrary", pfx) or 1.0
     return math.max(40, math.floor(_BASE_MODULE_H * scale))
 end
 
@@ -307,18 +310,21 @@ function M.getMenuItems(ctx_menu)
     return {
         {
             text = _("Z-Library: Search"),
+            keep_menu_open = true,
             callback = function()
                 ZLUI.showSearchWindow()
             end,
         },
         {
             text = _("Z-Library: Login"),
+            keep_menu_open = true,
             callback = function()
                 ZLUI.showLoginWindow()
             end,
         },
         {
             text = _("Z-Library: Settings"),
+            keep_menu_open = true,
             callback = function()
                 ZLUI.showSettingsMenu()
             end,
@@ -327,6 +333,7 @@ function M.getMenuItems(ctx_menu)
             text = is_logged_in
                 and _("Z-Library: Logged in (%s)"):format(domain)
                 or  _("Z-Library: Not logged in (%s)"):format(domain),
+            keep_menu_open = true,
             callback = function()
                 if is_logged_in then
                     ZLUI.showSettingsMenu()
