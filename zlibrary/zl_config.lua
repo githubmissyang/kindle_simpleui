@@ -3,7 +3,7 @@
 
 local _ = require("sui_i18n").translate
 local SUISettings = require("sui_store")
-local DataStorage = require("datastorage")
+local ok_ds, DataStorage = pcall(require, "datastorage")
 
 -- Default domains (known Chinese mirror sites)
 local DEFAULT_DOMAINS = {
@@ -64,8 +64,11 @@ end
 function ZLConfig.getDownloadDir()
     local dir = SUISettings:readSetting(KEY_DOWNLOAD_DIR)
     if not dir then
-        -- Default: KOReader books directory / Z-Library
-        dir = DataStorage:getDataDir() .. "/Z-Library"
+        if ok_ds and DataStorage then
+            dir = DataStorage:getDataDir() .. "/Z-Library"
+        else
+            dir = "/mnt/us/books/Z-Library"
+        end
     end
     return dir
 end

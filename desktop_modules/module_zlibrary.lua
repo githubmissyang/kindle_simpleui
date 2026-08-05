@@ -10,13 +10,8 @@ local Font            = require("ui/font")
 local FrameContainer  = require("ui/widget/container/framecontainer")
 local Geom            = require("ui/geometry")
 local GestureRange    = require("ui/gesturerange")
-local HorizontalGroup = require("ui/widget/horizontalgroup")
-local HorizontalSpan  = require("ui/widget/horizontalspan")
-local ImageWidget     = require("ui/widget/imagewidget")
 local InputContainer  = require("ui/widget/container/inputcontainer")
 local TextWidget      = require("ui/widget/textwidget")
-local TextBoxWidget   = require("ui/widget/textboxwidget")
-local UIManager       = require("ui/uimanager")
 local VerticalGroup   = require("ui/widget/verticalgroup")
 local VerticalSpan    = require("ui/widget/verticalspan")
 local Screen          = Device.screen
@@ -28,9 +23,23 @@ local UI           = require("sui_core")
 local SUISettings  = require("sui_store")
 local SUIStyle     = require("sui_style")
 local Config       = require("sui_config")
-local ZLConfig     = require("zlibrary/zl_config")
-local ZLClient     = require("zlibrary/zl_client")
-local ZLUI         = require("zlibrary/zl_ui")
+
+-- Lazy-load zlibrary sub-modules to prevent module load failures
+-- if any sub-module is missing or broken at require time.
+local function _getZLConfig()
+    local ok, mod = pcall(require, "zlibrary/zl_config")
+    return ok and mod or nil
+end
+
+local function _getZLClient()
+    local ok, mod = pcall(require, "zlibrary/zl_client")
+    return ok and mod or nil
+end
+
+local function _getZLUI()
+    local ok, mod = pcall(require, "zlibrary/zl_ui")
+    return ok and mod or nil
+end
 
 local PAD          = UI.PAD
 local CLR_TEXT_SUB = UI.CLR_TEXT_SUB
@@ -44,7 +53,6 @@ local _BASE_SEARCH_FS  = SUIStyle.FS_BODY          -- 18
 local _BASE_RECENT_H   = Screen:scaleBySize(36)
 local _BASE_RECENT_FS  = SUIStyle.FS_DETAIL         -- 15
 local _BASE_LABEL_FS   = SUIStyle.FS_CAPTION        -- 13
-local _BASE_ICON_SZ    = Screen:scaleBySize(20)
 local _BASE_MODULE_H   = Screen:scaleBySize(200)
 local _BASE_CORNER_R   = Screen:scaleBySize(10)
 local _BASE_FRAME_PAD  = Screen:scaleBySize(10)
@@ -63,6 +71,8 @@ M.has_covers  = true
 
 function M.isEnabled(pfx)
     -- nilOrTrue: default enabled when key not set (matches default_on = true)
+    -- Also ensure the zlibrary sub-modules can actually load.
+    if not _getZLConfig() then return false end
     return SUISettings:nilOrTrue(pfx .. M.enabled_key)
 end
 
@@ -76,53 +86,19 @@ local function _buildSearchBar(w, ctx, scale)
     local fs      = math.max(8,  math.floor(_BASE_SEARCH_FS * scale))
     local corner  = math.max(4,  math.floor(_BASE_CORNER_R * scale))
     local fpad    = math.max(4,  math.floor(_BASE_FRAME_PAD * scale))
-    local icon_sz = math.max(10, math.floor(_BASE_ICON_SZ * scale))
 
-    local domain = ZLConfig.getActiveDomainName()
-    local hint_text = _("Search Z-Library") .. " (" .. domain .. ")"
+    local ZLConfig = _getZLConfig()
+    local domain = ZLConfig and ZLConfig.getActiveDomainName() or "z-lib.org"
+    local hint_text = ">> " .. _("Search Z-Library") .. " (" .. domain .. ")"
 
-    -- Determine icon path: look for the SVG next to this module file
-    local src = debug.getinfo(1, "S").source or ""
-    local p_root = src:match("^@?(.+)/[^/]+$")
-    local icon_path
-    if p_root then
-        icon_path = p_root:match("^(.+/desktop_modules)$")
-            and (p_root:match("^(.+/desktop_modules)$"):gsub("/desktop_modules$", "") .. "/icons/zlibrary.svg")
-            or nil
-    end
-
-    local search_inner = HorizontalGroup:new{
-        align = "center",
+    local search_inner = CenterContainer:new{
         dimen = Geom:new{ w = w - fpad * 2, h = h - fpad * 2 },
-    }
-
-    -- Icon (if found)
-    if icon_path then
-        local lfs = require("libs/libkoreader-lfs")
-        if lfs.attributes(icon_path, "mode") == "file" then
-            search_inner:add(CenterContainer:new{
-                dimen = Geom:new{ w = icon_sz + fpad, h = h - fpad * 2 },
-                ImageWidget:new{
-                    file = icon_path,
-                    width = icon_sz,
-                    height = icon_sz,
-                    alpha = true,
-                },
-            })
-        end
-    end
-
-    -- Hint text
-    local text_w = w - fpad * 2
-    if icon_path then text_w = text_w - icon_sz - fpad end
-    search_inner:add(CenterContainer:new{
-        dimen = Geom:new{ w = text_w, h = h - fpad * 2 },
         TextWidget:new{
             text    = hint_text,
             face    = Font:getFace(SUIStyle.FACE_REGULAR, fs),
             fgcolor = CLR_TEXT_SUB,
         },
-    })
+    }
 
     local search_tap = InputContainer:new{}
     search_tap[1] = FrameContainer:new{
@@ -142,7 +118,8 @@ local function _buildSearchBar(w, ctx, scale)
         },
     }
     search_tap.onTapSearch = function()
-        ZLUI.showSearchWindow()
+        local ZLUI = _getZLUI()
+        if ZLUI then ZLUI.showSearchWindow() end
     end
 
     return search_tap
@@ -154,7 +131,8 @@ end
 
 local function _buildRecentList(w, ctx, scale)
     scale = scale or 1.0
-    local recent = ZLConfig.getRecent()
+    local ZLConfig = _getZLConfig()
+    local recent = ZLConfig and ZLConfig.getRecent() or {}
 
     if not recent or #recent == 0 then
         -- No recent downloads — show a subtle hint
@@ -232,101 +210,126 @@ end
 -- ---------------------------------------------------------------------------
 
 function M.build(w, ctx)
-    local pfx = ctx and ctx.pfx or "simpleui_hs_"
-    local scale = Config.getModuleScale("zlibrary", pfx) or 1.0
+    local ok, result = pcall(function()
+        local pfx = ctx and ctx.pfx or "simpleui_hs_"
+        local scale = Config.getModuleScale("zlibrary", pfx) or 1.0
 
-    local vg = VerticalGroup:new{
-        align = "left",
-    }
+        local vg = VerticalGroup:new{
+            align = "left",
+        }
 
-    -- Section label
-    if M.label then
-        local label_fs = math.max(6, math.floor(SUIStyle.FS_CAPTION * scale))
-        vg:add(TextWidget:new{
-            text    = M.label,
-            face    = Font:getFace(SUIStyle.FACE_BOLD, label_fs),
-            fgcolor = CLR_TEXT_SUB,
-            width   = w,
-        })
-        vg:add(VerticalSpan:new{ width = math.max(2, math.floor(6 * scale)) })
-    end
+        -- Section label
+        if M.label then
+            local label_fs = math.max(6, math.floor(SUIStyle.FS_CAPTION * scale))
+            vg:add(TextWidget:new{
+                text    = M.label,
+                face    = Font:getFace(SUIStyle.FACE_BOLD, label_fs),
+                fgcolor = CLR_TEXT_SUB,
+                width   = w,
+            })
+            vg:add(VerticalSpan:new{ width = math.max(2, math.floor(6 * scale)) })
+        end
 
-    -- Search bar
-    local ok_search, search_bar = pcall(_buildSearchBar, w, ctx, scale)
-    if ok_search and search_bar then
-        vg:add(search_bar)
-    else
-        -- Fallback: simple text button if search bar fails
-        logger.warn("module_zlibrary: search bar build failed, using fallback")
-        vg:add(TextWidget:new{
-            text    = _("Search Z-Library"),
-            face    = Font:getFace(SUIStyle.FACE_REGULAR, math.max(8, math.floor(_BASE_SEARCH_FS * scale))),
-            fgcolor = Blitbuffer.COLOR_BLACK,
-        })
-    end
-    vg:add(VerticalSpan:new{ width = math.max(2, math.floor(8 * scale)) })
+        -- Search bar
+        local ok_search, search_bar = pcall(_buildSearchBar, w, ctx, scale)
+        if ok_search and search_bar then
+            vg:add(search_bar)
+        else
+            -- Fallback: simple text button if search bar fails
+            logger.warn("module_zlibrary: search bar build failed, using fallback")
+            vg:add(TextWidget:new{
+                text    = _("Search Z-Library"),
+                face    = Font:getFace(SUIStyle.FACE_REGULAR, math.max(8, math.floor(_BASE_SEARCH_FS * scale))),
+                fgcolor = Blitbuffer.COLOR_BLACK,
+            })
+        end
+        vg:add(VerticalSpan:new{ width = math.max(2, math.floor(8 * scale)) })
 
-    -- Recent downloads
-    local ok_recent, recent_list = pcall(_buildRecentList, w, ctx, scale)
-    if ok_recent and recent_list then
-        vg:add(recent_list)
-    end
+        -- Recent downloads
+        local ok_recent, recent_list = pcall(_buildRecentList, w, ctx, scale)
+        if ok_recent and recent_list then
+            vg:add(recent_list)
+        end
 
-    -- Wrap in an InputContainer for long-press to open settings
-    local module_widget = InputContainer:new{}
-    module_widget[1] = FrameContainer:new{
-        bordersize = 0,
-        padding    = 0,
-        vg,
-    }
-    module_widget.dimen = module_widget[1]:getSize()
+        -- Wrap in an InputContainer for long-press to open settings
+        local module_widget = InputContainer:new{}
+        module_widget[1] = FrameContainer:new{
+            bordersize = 0,
+            padding    = 0,
+            vg,
+        }
+        module_widget.dimen = module_widget[1]:getSize()
 
-    -- Long press opens Z-Library settings
-    module_widget.ges_events = {
-        HoldSettings = {
-            GestureRange:new{
-                ges  = "hold",
-                range = module_widget.dimen,
+        -- Long press opens Z-Library settings
+        module_widget.ges_events = {
+            HoldSettings = {
+                GestureRange:new{
+                    ges  = "hold",
+                    range = module_widget.dimen,
+                },
             },
-        },
-    }
-    module_widget.onHoldSettings = function()
-        ZLUI.showSettingsMenu()
-    end
+        }
+        module_widget.onHoldSettings = function()
+            local ZLUI = _getZLUI()
+            if ZLUI then ZLUI.showSettingsMenu() end
+        end
 
-    return module_widget
+        return module_widget
+    end)
+
+    if not ok or not result then
+        logger.warn("module_zlibrary: build failed:", result)
+        -- Return a minimal placeholder widget so the module never disappears
+        return InputContainer:new{
+            [1] = FrameContainer:new{
+                bordersize = 0,
+                padding    = PAD,
+                TextWidget:new{
+                    text = "Z-Library",
+                    face = Font:getFace(SUIStyle.FACE_REGULAR, SUIStyle.FS_BODY),
+                },
+            },
+        }
+    end
+    return result
 end
 
 function M.getHeight(ctx)
     local pfx = ctx and ctx.pfx or "simpleui_hs_"
-    local scale = Config.getModuleScale("zlibrary", pfx) or 1.0
+    local ok, scale = pcall(Config.getModuleScale, "zlibrary", pfx)
+    if not ok then scale = 1.0 end
+    scale = scale or 1.0
     return math.max(40, math.floor(_BASE_MODULE_H * scale))
 end
 
 function M.getMenuItems(ctx_menu)
-    local domain = ZLConfig.getActiveDomainName()
-    local is_logged_in = ZLClient.isLoggedIn(ZLConfig.getActiveDomain())
+    local ZLConfig = _getZLConfig()
+    local ZLClient = _getZLClient()
+    local ZLUI     = _getZLUI()
+
+    local domain = ZLConfig and ZLConfig.getActiveDomainName() or "z-lib.org"
+    local is_logged_in = ZLClient and ZLConfig and ZLClient.isLoggedIn(ZLConfig.getActiveDomain()) or false
 
     return {
         {
             text = _("Z-Library: Search"),
             keep_menu_open = true,
             callback = function()
-                ZLUI.showSearchWindow()
+                if ZLUI then ZLUI.showSearchWindow() end
             end,
         },
         {
             text = _("Z-Library: Login"),
             keep_menu_open = true,
             callback = function()
-                ZLUI.showLoginWindow()
+                if ZLUI then ZLUI.showLoginWindow() end
             end,
         },
         {
             text = _("Z-Library: Settings"),
             keep_menu_open = true,
             callback = function()
-                ZLUI.showSettingsMenu()
+                if ZLUI then ZLUI.showSettingsMenu() end
             end,
         },
         {
@@ -335,6 +338,7 @@ function M.getMenuItems(ctx_menu)
                 or  _("Z-Library: Not logged in (%s)"):format(domain),
             keep_menu_open = true,
             callback = function()
+                if not ZLUI then return end
                 if is_logged_in then
                     ZLUI.showSettingsMenu()
                 else

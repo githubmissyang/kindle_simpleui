@@ -16,8 +16,10 @@ local Geom        = require("ui/geometry")
 local GestureRange = require("ui/gesturerange")
 
 local Menu             = require("ui/widget/menu")
-local InputDialog      = require("ui/widget/inputdialog")
-local MultiInputDialog = require("ui/widget/multiinputdialog")
+local ok_id, InputDialog      = pcall(require, "ui/widget/inputdialog")
+if not ok_id then InputDialog = nil end
+local ok_mid, MultiInputDialog = pcall(require, "ui/widget/multiinputdialog")
+if not ok_mid then MultiInputDialog = nil end
 local InfoMessage      = require("ui/widget/infomessage")
 local ConfirmBox       = require("ui/widget/confirmbox")
 local TextBoxWidget    = require("ui/widget/textboxwidget")
@@ -87,6 +89,14 @@ end
 -- ---------------------------------------------------------------------------
 
 function ZLUI.showSearchWindow()
+    if not InputDialog then
+        UIManager:show(InfoMessage:new{
+            text = _("Search not available (InputDialog missing)."),
+            timeout = 3,
+        })
+        return
+    end
+
     local input_dialog
     input_dialog = InputDialog:new{
         title = _("Search Z-Library"),
@@ -462,6 +472,14 @@ end
 -- ---------------------------------------------------------------------------
 
 function ZLUI.showLoginWindow(callback)
+    if not MultiInputDialog then
+        UIManager:show(InfoMessage:new{
+            text = _("Login not available (MultiInputDialog missing)."),
+            timeout = 3,
+        })
+        return
+    end
+
     local domain = ZLConfig.getActiveDomain()
     local saved_user = ZLConfig.getUserReminder(domain) or ""
 
