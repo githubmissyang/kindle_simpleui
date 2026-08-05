@@ -43,6 +43,18 @@ local ZLUI = {}
 -- Internal helpers
 -- ---------------------------------------------------------------------------
 
+--- Report a UI error without letting the error-reporting path crash KOReader.
+local function _showUIError(prefix, err)
+    local message = prefix .. ": " .. tostring(err)
+    pcall(function() logger.err("simpleui: Z-Library: " .. message) end)
+    pcall(function()
+        UIManager:show(InfoMessage:new{
+            text = message,
+            timeout = 5,
+        })
+    end)
+end
+
 --- Sanitize a string for use as a filename component.
 local function _sanitizeFilename(s)
     if not s or s == "" then return "unknown" end
@@ -572,100 +584,138 @@ function ZLUI._doLogin(username, password, callback)
 end
 
 function ZLUI._showDomainPicker(callback)
-    local screen_w = Screen:getWidth()
-    local screen_h = Screen:getHeight()
+    local ok_build, menu_or_err = pcall(function()
+        local screen_w = Screen:getWidth()
+        local screen_h = Screen:getHeight()
+        local raw_domains = ZLConfig.getDomains()
+        local active_url = ZLConfig.getActiveDomain()
+        if type(active_url) ~= "string" then active_url = "" end
 
-    local item_table = {}
-    local domains = ZLConfig.getDomains()
-    local active_url = ZLConfig.getActiveDomain()
-
-    -- Default (built-in) domains that cannot be deleted
-    local DEFAULT_URLS = {
-        ["https://z-lib.org"] = true,
-        ["https://singlelogin.re"] = true,
-        ["https://z-library.sk"] = true,
-    }
-
-    for _, d in ipairs(domains) do
-        local is_active = active_url == d.url
-        local is_builtin = DEFAULT_URLS[d.url] == true
-        item_table[#item_table + 1] = {
-            text = d.name .. (is_active and "  ✓" or ""),
-            callback = function()
-                if not is_active then
-                    ZLConfig.setActiveDomain(d.url)
+        -- Settings are user-editable and may contain legacy or partial entries.
+        -- Only pass well-formed strings to Menu, whose initializer renders text.
+        local domains = {}
+        if type(raw_domains) == "table" then
+            for _, domain in ipairs(raw_domains) do
+                if type(domain) == "table"
+                        and type(domain.url) == "string" and domain.url ~= "" then
+                    domains[#domains + 1] = {
+                        name = type(domain.name) == "string" and domain.name ~= ""
+                            and domain.name or domain.url,
+                        url = domain.url,
+                    }
                 end
-                if callback then callback() end
-            end,
+            end
+        end
+
+        local item_table = {}
+        local default_urls = {
+            ["https://z-lib.org"] = true,
+            ["https://singlelogin.re"] = true,
+            ["https://z-library.sk"] = true,
         }
-        -- Add a "Delete" entry for non-builtin domains
-        if not is_builtin then
+
+        for _, domain in ipairs(domains) do
+            -- Capture values per iteration; do not retain the loop table in callbacks.
+            local domain_name = domain.name
+            local domain_url = domain.url
+            local is_active = active_url ~= "" and active_url == domain_url
             item_table[#item_table + 1] = {
-                text = "  " .. _("Delete: ") .. d.name,
+                text = domain_name .. (is_active and "  ✓" or ""),
                 callback = function()
-                    UIManager:show(ConfirmBox:new{
-                        text = _("Delete domain?") .. "\n" .. d.name .. " (" .. d.url .. ")",
-                        ok_text = _("Delete"),
-                        cancel_text = _("Cancel"),
-                        ok_callback = function()
-                            local current_domains = ZLConfig.getDomains()
-                            local new_domains = {}
-                            for _, dd in ipairs(current_domains) do
-                                if dd.url ~= d.url then
-                                    new_domains[#new_domains + 1] = dd
-                                end
-                            end
-                            ZLConfig.setDomains(new_domains)
-                            -- If deleted the active domain, switch to first remaining
-                            if d.url == active_url and #new_domains > 0 then
-                                ZLConfig.setActiveDomain(new_domains[1].url)
-                            end
-                            -- Refresh the domain picker
-                            ZLUI._showDomainPicker(callback)
-                        end,
-                    })
+                    if not is_active then ZLConfig.setActiveDomain(domain_url) end
+                    if callback then callback() end
                 end,
             }
+
+            if not default_urls[domain_url] then
+                item_table[#item_table + 1] = {
+                    text = "  " .. _("Delete: ") .. domain_name,
+                    callback = function()
+                        UIManager:show(ConfirmBox:new{
+                            text = _("Delete domain?") .. "\n" .. domain_name .. " (" .. domain_url .. ")",
+                            ok_text = _("Delete"),
+                            cancel_text = _("Cancel"),
+                            ok_callback = function()
+                                local ok_delete, delete_err = pcall(function()
+                                    local current_domains = ZLConfig.getDomains()
+                                    local new_domains = {}
+                                    if type(current_domains) == "table" then
+                                        for _, current in ipairs(current_domains) do
+                                            if type(current) == "table" and current.url ~= domain_url then
+                                                new_domains[#new_domains + 1] = current
+                                            end
+                                        end
+                                    end
+                                    ZLConfig.setDomains(new_domains)
+                                    if domain_url == active_url then
+                                        ZLConfig.setActiveDomain(new_domains[1] and new_domains[1].url or "")
+                                    end
+                                    ZLUI._showDomainPicker(callback)
+                                end)
+                                if not ok_delete then
+                                    _showUIError(_("Failed to delete domain"), delete_err)
+                                end
+                            end,
+                        })
+                    end,
+                }
+            end
         end
+
+        if #domains == 0 then
+            item_table[#item_table + 1] = {
+                text = _("No valid domains configured."),
+                enabled = false,
+                select_enabled = false,
+            }
+        end
+        item_table[#item_table + 1] = { text = "───", enabled = false, select_enabled = false }
+        item_table[#item_table + 1] = {
+            text = _("Add domain…"),
+            callback = function() ZLUI._showAddDomainDialog(callback) end,
+        }
+
+        return Menu:new{
+            title = _("Select Domain"),
+            item_table = item_table,
+            width = screen_w - PAD * 2,
+            height = screen_h - PAD * 2,
+            is_popout = false,
+            onMenuSelect = function(self_menu, item)
+                if not item or item.select_enabled == false then return true end
+                local cb = item.callback
+                local ok_close, close_err = pcall(function() UIManager:close(self_menu) end)
+                if not ok_close then
+                    _showUIError(_("Failed to close domain picker"), close_err)
+                    return true
+                end
+                if cb then
+                    local ok_schedule, schedule_err = pcall(function()
+                        UIManager:scheduleIn(0.1, function()
+                            local ok_callback, callback_err = pcall(cb)
+                            if not ok_callback then
+                                _showUIError(_("Domain action failed"), callback_err)
+                            end
+                        end)
+                    end)
+                    if not ok_schedule then
+                        _showUIError(_("Failed to schedule domain action"), schedule_err)
+                    end
+                end
+                return true
+            end,
+        }
+    end)
+
+    if not ok_build or not menu_or_err then
+        _showUIError(_("Unable to open domain picker"), menu_or_err or "Menu:new returned nil")
+        return
     end
 
-    -- Separator
-    item_table[#item_table + 1] = {
-        text = "───",
-        enabled = false,
-    }
-
-    -- Add domain entry
-    item_table[#item_table + 1] = {
-        text = _("Add domain…"),
-        callback = function()
-            ZLUI._showAddDomainDialog(callback)
-        end,
-    }
-
-    local menu
-    menu = Menu:new{
-        title = _("Select Domain"),
-        item_table = item_table,
-        width = screen_w - PAD * 2,
-        height = screen_h - PAD * 2,
-        is_popout = false,
-        onMenuSelect = function(self_menu, item)
-            -- Close the picker menu, then defer the callback to the next
-            -- event loop tick. This ensures UIManager finishes processing
-            -- the close (removing from _window_stack, sending CloseWidget)
-            -- before the callback opens a new widget.
-            if item.callback then
-                local cb = item.callback
-                UIManager:close(self_menu)
-                UIManager:scheduleIn(0.1, function() cb() end)
-            else
-                UIManager:close(self_menu)
-            end
-        end,
-    }
-
-    UIManager:show(menu)
+    local ok_show, show_err = pcall(function() UIManager:show(menu_or_err) end)
+    if not ok_show then
+        _showUIError(_("Unable to display domain picker"), show_err)
+    end
 end
 
 function ZLUI._showAddDomainDialog(callback)
