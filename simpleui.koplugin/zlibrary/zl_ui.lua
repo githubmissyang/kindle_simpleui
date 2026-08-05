@@ -652,6 +652,7 @@ function ZLUI._showDomainPicker(callback)
         height = screen_h - PAD * 2,
         is_popout = false,
         close_callback = function()
+            UIManager:close(menu)
         end,
     }
 
@@ -951,6 +952,7 @@ function ZLUI.showSettingsMenu()
         height = screen_h - PAD * 2,
         is_popout = false,
         close_callback = function()
+            UIManager:close(menu)
         end,
     }
 
