@@ -509,10 +509,8 @@ function ZLUI.showLoginWindow(callback)
                     text = _("Switch Domain"),
                     callback = function()
                         UIManager:close(dialog)
-                        UIManager:scheduleIn(0.05, function()
-                            ZLUI._showDomainPicker(function()
-                                ZLUI.showLoginWindow(callback)
-                            end)
+                        ZLUI._showDomainPicker(function()
+                            ZLUI.showLoginWindow(callback)
                         end)
                     end,
                 },
@@ -623,6 +621,7 @@ function ZLUI._showDomainPicker(callback)
                                 ZLConfig.setActiveDomain(new_domains[1].url)
                             end
                             -- Refresh the domain picker
+                            UIManager:close(menu)
                             ZLUI._showDomainPicker(callback)
                         end,
                     })
@@ -652,12 +651,7 @@ function ZLUI._showDomainPicker(callback)
         width = screen_w - PAD * 2,
         height = screen_h - PAD * 2,
         is_popout = false,
-        onMenuSelect = function(self_menu, item)
-            if item.callback then
-                local cb = item.callback
-                UIManager:close(menu)
-                UIManager:scheduleIn(0.05, function() cb() end)
-            end
+        close_callback = function()
         end,
     }
 
@@ -956,12 +950,7 @@ function ZLUI.showSettingsMenu()
         width = screen_w - PAD * 2,
         height = screen_h - PAD * 2,
         is_popout = false,
-        onMenuSelect = function(self_menu, item)
-            if item.callback then
-                local cb = item.callback
-                UIManager:close(menu)
-                UIManager:scheduleIn(0.05, function() cb() end)
-            end
+        close_callback = function()
         end,
     }
 
